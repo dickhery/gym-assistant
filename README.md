@@ -2,10 +2,11 @@
 
 Gym Assistant is a strength-training journal on the Internet Computer. Open an exercise to see the weight, reps, and recorded rest for every set in its last session, then log today's work beside it.
 
-- Log a warm-up, three heavy sets, and a burnout. Save the sets you completed, including zero-weight bodyweight sets.
+- Start with a warm-up, three heavy sets, and a burnout. Add or remove rows and save the sets you completed, including zero-weight bodyweight sets.
 - Reuse the previous session's numbers, switch between pounds and kilograms per session, run a rest countdown, and record notes or actual rest in seconds.
 - Create and rename categories, and assign one exercise to any number of them. Removing a category keeps its exercises and history.
-- Sign in with Internet Identity to open your private workspace, filter your session history, and sync your log across devices.
+- Sign in with Internet Identity to open your private workspace, view sessions grouped by local calendar day, and filter by exercise.
+- Workout duration runs from the first completed set to pressing Save, with 30 seconds added for the first set. Older sessions appear in history with their original date and sets.
 
 ## Run locally
 
@@ -40,6 +41,8 @@ npm exec -- icp sync frontend -e ic
 ```
 
 The frontend command syncs assets to the existing legacy asset canister. Run the mainnet frontend build without `VITE_LOCAL_II_URL` so it uses mainnet Internet Identity.
+
+After a successful mainnet backend upgrade, run `npm exec -- mops deployed backend` and commit the updated stable signature with the upgrade. Mops checks future changes against that signature.
 
 ## Data and authentication
 

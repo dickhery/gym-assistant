@@ -3,7 +3,7 @@ import {
   LayoutGrid, LogOut, Menu, Pencil, Plus, Search, ShieldCheck, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Entry, ExerciseSummary, Session, Workspace as WorkspaceData } from "../bindings/backend";
+import type { ExerciseSummary, Session, SessionInput, Workspace as WorkspaceData } from "../bindings/backend";
 import { errorMessage, type TrainingStore } from "../store";
 import { Brand, Hero } from "./Brand";
 import { EditorDialog, type Editor } from "./Dialogs";
@@ -134,7 +134,7 @@ export function Workspace({
     }
   }
 
-  async function log(entry: Entry) {
+  async function log(entry: SessionInput) {
     const session = await store.logSession(entry);
     if (!knownSessions.has(entry.id)) {
       knownSessions.add(entry.id);

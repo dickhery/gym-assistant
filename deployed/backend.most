@@ -1,0 +1,90 @@
+// Version: 4.0.0
+type Account__13682971 =
+  {
+    byExercise :
+      Map__230067015<Text, List__836382695<StoredSession__409082079>>;
+    byId : Map__230067015<Text, StoredSession__409082079>;
+    categories : Map__230067015<Text, Category__880125154>;
+    exercises : Map__230067015<Text, Exercise__463345370>;
+    sessions : List__836382695<StoredSession__409082079>
+  };
+type Account__538838733 =
+  {
+    byExercise : Map__230067015<Text, List__836382695<Session__400979371>>;
+    byId : Map__230067015<Text, Session__400979371>;
+    categories : Map__230067015<Text, Category__862781309>;
+    exercises : Map__230067015<Text, Exercise__668114902>;
+    sessions : List__836382695<Session__400979371>
+  };
+type Category__862781309 = {id : Text; name : Text};
+type Category__880125154 = {id : Text; name : Text};
+type Data__44217153<K, V> = {var count : Nat__227979830; kvs : [var ?(K, V)]};
+type Durations__561548098 = Map__230067015<Text, Nat32>;
+type Entry__302440191 =
+  {
+    exerciseId : Text;
+    id : Text;
+    notes : Text;
+    sets : [LiftSet__557287576];
+    unit : {#kg; #lb}
+  };
+type Entry__993924177 =
+  {
+    exerciseId : Text;
+    id : Text;
+    notes : Text;
+    sets : [LiftSet__110790742];
+    unit : Unit__994062481
+  };
+type Exercise__463345370 = {categoryIds : [Text]; id : Text; name : Text};
+type Exercise__668114902 = {categoryIds : [Text]; id : Text; name : Text};
+type Internal__283199666<K, V> =
+  {children : [var ?Node__204828119<K, V>]; data : Data__44217153<K, V>};
+type Leaf__598469445<K, V> = {data : Data__44217153<K, V>};
+type LiftSet__110790742 =
+  {reps : Nat16; restSeconds : ?Nat16; slot : Nat8; weight : Nat32};
+type LiftSet__557287576 =
+  {reps : Nat16; restSeconds : ?Nat16; slot : Nat8; weight : Nat32};
+type List__355132335<T> =
+  {
+    var blockIndex : Nat__227979830;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__227979830
+  };
+type List__836382695<T> = List__355132335<T>;
+type Map__230067015<K, V> = Map__405889023<K, V>;
+type Map__405889023<K, V> = Map__603270868<K, V>;
+type Map__603270868<K, V> =
+  {var root : Node__204828119<K, V>; var size : Nat__227979830};
+type Nat__227979830 = Nat__920180692;
+type Nat__920180692 = Nat;
+type NewActor__344756906 =
+  {
+    accounts : Map__230067015<Principal, Account__538838733>;
+    totals : {var sessions : Nat}
+  };
+type NewActor__975426139 =
+  {durations : Map__230067015<Principal, Map__230067015<Text, Nat32>>};
+type Node__204828119<K, V> =
+  {#internal : Internal__283199666<K, V>; #leaf : Leaf__598469445<K, V>};
+type OldActor__381126648 = {};
+type Session__400979371 = {entry : Entry__302440191; loggedAt : Int};
+type StoredSession__409082079 = {entry : Entry__993924177; loggedAt : Int};
+type Unit__994062481 = {#kg; #lb};
+{
+  "20261107_100700" : (_old : {}) -> NewActor__344756906;
+  "20261107_111748" : (_old : OldActor__381126648) -> NewActor__975426139
+}
+actor  {
+  stable accounts :
+    {
+      var root : Node__204828119<Principal, Account__13682971>;
+      var size : Nat__227979830
+    };
+  stable durations :
+    {
+      var root : Node__204828119<Principal, Durations__561548098>;
+      var size : Nat__227979830
+    };
+  stable totals : {var sessions : Nat}
+};

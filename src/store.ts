@@ -1,8 +1,8 @@
 import { AuthClient } from "@icp-sdk/auth/client";
 import { safeGetCanisterEnv } from "@icp-sdk/core/agent/canister-env";
 import {
-  createActor, type Category, type Entry, type Error_, type Exercise, type HistoryPage,
-  type Session, type Workspace,
+  createActor, type Category, type Error_, type Exercise, type HistoryPage,
+  type Session, type SessionInput, type Workspace,
 } from "./bindings/backend";
 
 const canisterEnv = safeGetCanisterEnv();
@@ -32,7 +32,7 @@ export interface TrainingStore {
   saveCategory(category: Category): Promise<Category>;
   saveExercise(exercise: Exercise): Promise<Exercise>;
   removeCategory(id: string): Promise<unknown>;
-  logSession(entry: Entry): Promise<Session>;
+  logSession(entry: SessionInput): Promise<Session>;
 }
 
 class TrainingError extends Error {

@@ -9,6 +9,9 @@ moc = "2.2.1"
 main = "src/backend/main.mo"
 candid = "src/backend/backend.did"
 
+[canisters.backend.check-stable]
+path = "deployed/backend.most"
+
 [canisters.backend.migrations]
 chain = "src/backend/migrations"
 check-limit = 1

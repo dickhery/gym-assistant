@@ -9,8 +9,18 @@ type Unit =
    kg;
    lb;
  };
+type SessionInput =
+ record {
+   durationSeconds: opt nat32;
+   exerciseId: text;
+   id: text;
+   notes: text;
+   sets: vec LiftSet;
+   unit: Unit;
+ };
 type Session =
  record {
+   durationSeconds: opt nat32;
    entry: Entry;
    loggedAt: int;
  };
@@ -92,7 +102,7 @@ type Category =
 service : {
   getHistory: (exerciseId: opt text, before: opt nat) -> (Result_5) query;
   getWorkspace: () -> (Result_4) query;
-  logSession: (entry: Entry) -> (Result_3);
+  logSession: (input: SessionInput) -> (Result_3);
   removeCategory: (id: text) -> (Result_2);
   saveCategory: (category: Category) -> (Result_1);
   saveExercise: (exercise: Exercise) -> (Result);

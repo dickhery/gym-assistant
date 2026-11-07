@@ -1,12 +1,28 @@
-import { ArrowDownToLine, Check, ClipboardList, Clock3, Dumbbell, Pencil, Play, RotateCcw, Timer } from "lucide-react";
+import { ArrowDownToLine, Check, ClipboardList, Clock3, Dumbbell, Pencil, Play, Plus, RotateCcw, Timer, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Unit, type Category, type Entry, type ExerciseSummary, type LiftSet, type Session } from "../bindings/backend";
+import { Unit, type Category, type ExerciseSummary, type LiftSet, type Session, type SessionInput } from "../bindings/backend";
 import { errorMessage } from "../store";
-import { categoryColor, sessionDate, SET_MARKS, SET_NAMES, setText } from "./format";
+import {
+  BURNOUT_SLOT, DEFAULT_SET_SLOTS, MAX_SET_SLOT, WARM_UP_SLOT, WORKING_SET_SLOTS,
+  categoryColor, compareSetSlots, formatDuration, sessionDate, setMark, setName, setText,
+} from "./format";
 
 type SetFields = { weight: string; reps: string; rest: string };
-type Draft = { id: string; unit: Unit; sets: SetFields[]; notes: string };
+type DraftSet = SetFields & { slot: number };
+type Draft = { id: string; unit: Unit; sets: DraftSet[]; notes: string; startedAt?: number };
 const draftPrefix = (principal: string) => `gym-assistant:draft:${principal}:`;
+const blankSet = (slot: number): DraftSet => ({ slot, weight: "", reps: "", rest: "" });
+const hasValues = ({ weight, reps, rest }: SetFields) => Boolean(weight || reps || rest);
+const isComplete = ({ weight, reps }: SetFields) =>
+  weight !== "" && Number(weight) >= 0 && Number(weight) <= 5000 &&
+  Number.isInteger(Number(reps)) && Number(reps) >= 1 && Number(reps) <= 500;
+const workoutSeconds = (startedAt: number, now: number) =>
+  Math.min(0xffff_ffff, Math.max(0, Math.floor((now - startedAt) / 1000)) + 30);
+
+function templateSlots(last?: Session) {
+  return [...new Set([...DEFAULT_SET_SLOTS, ...(last?.entry.sets.map(({ slot }) => slot) ?? [])])]
+    .sort(compareSetSlots);
+}
 
 export function clearAccountDrafts(principal: string) {
   const prefix = draftPrefix(principal);
@@ -20,26 +36,52 @@ export function clearAccountDrafts(principal: string) {
   }
 }
 
-function newDraft(unit: Unit): Draft {
+function newDraft(unit: Unit, last?: Session): Draft {
   return {
     id: crypto.randomUUID(), unit, notes: "",
-    sets: SET_NAMES.map(() => ({ weight: "", reps: "", rest: "" })),
+    sets: templateSlots(last).map(blankSet),
   };
 }
 
-function readDraft(key: string, unit: Unit): Draft {
+function readDraft(key: string, unit: Unit, last?: Session): Draft {
   try {
     const saved = JSON.parse(localStorage.getItem(key) ?? "null") as Draft | null;
     if (saved && typeof saved.id === "string" && typeof saved.notes === "string"
       && (saved.unit === Unit.lb || saved.unit === Unit.kg) && Array.isArray(saved.sets)
-      && saved.sets.length === SET_NAMES.length && saved.sets.every((row) =>
+      && saved.sets.length <= MAX_SET_SLOT + 1 && saved.sets.every((row) =>
         row && typeof row.weight === "string" && typeof row.reps === "string" && typeof row.rest === "string")) {
-      return saved;
+      const sets = saved.sets.map((row, index) => ({ ...row, slot: row.slot ?? index }));
+      const slots = new Set(sets.map(({ slot }) => slot));
+      if (slots.size === sets.length && sets.every(({ slot }) => Number.isInteger(slot) && slot >= 0 && slot <= MAX_SET_SLOT)) {
+        return {
+          ...saved,
+          sets: sets.sort((a, b) => compareSetSlots(a.slot, b.slot)),
+          startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : undefined,
+        };
+      }
     }
   } catch {
     // Storage may be disabled or contain an obsolete draft.
   }
-  return newDraft(unit);
+  return newDraft(unit, last);
+}
+
+function WorkoutDuration({ startedAt, savingSeconds }: { startedAt?: number; savingSeconds?: number }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (startedAt === undefined || savingSeconds !== undefined) return;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [startedAt, savingSeconds]);
+
+  return <div className="workout-duration">
+    <Clock3 size={15} />
+    {startedAt === undefined
+      ? <span>Workout timer starts after your first set is filled in.</span>
+      : <><strong role="timer" aria-label="Estimated workout duration">{formatDuration(savingSeconds ?? workoutSeconds(startedAt, now))}</strong>
+        <span>Workout time · includes 30s for the first set</span></>}
+  </div>;
 }
 
 function RestTimer() {
@@ -99,33 +141,51 @@ export function TrainingLog({
   categories: Category[];
   principal: string;
   edit: () => void;
-  log: (entry: Entry) => Promise<Session>;
+  log: (entry: SessionInput) => Promise<Session>;
   onSaved: () => void;
 }) {
   const { exercise, latest } = summary;
   const storageKey = draftPrefix(principal) + exercise.id;
-  const [draft, setDraft] = useState(() => readDraft(storageKey, latest?.entry.unit ?? Unit.lb));
-  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState(() => readDraft(storageKey, latest?.entry.unit ?? Unit.lb, latest));
+  const [savingSeconds, setSavingSeconds] = useState<number>();
+  const busy = savingSeconds !== undefined;
   const [error, setError] = useState("");
-  const hasSets = draft.sets.some(({ weight, reps, rest }) => weight || reps || rest);
-  const complete = draft.sets.filter(({ weight, reps }) => weight !== "" && reps !== "").length;
+  const hasSets = draft.sets.some(hasValues);
+  const complete = draft.sets.filter(isComplete).length;
+  const slots = new Set(draft.sets.map(({ slot }) => slot));
+  const nextWorkingSlot = WORKING_SET_SLOTS.find((slot) => !slots.has(slot));
+  const defaultSlots = templateSlots(latest);
+  const hasDraft = hasSets || draft.notes || draft.startedAt !== undefined ||
+    draft.sets.length !== defaultSlots.length || defaultSlots.some((slot) => !slots.has(slot));
   const tags = categories.filter((category) => exercise.categoryIds.includes(category.id));
 
   function updateDraft(next: Draft) {
-    setDraft(next);
+    const updated = next.startedAt === undefined && next.sets.some(isComplete)
+      ? { ...next, startedAt: Date.now() }
+      : next;
+    setDraft(updated);
     try {
-      if (next.notes || next.sets.some((row) => row.weight || row.reps || row.rest)) {
-        localStorage.setItem(storageKey, JSON.stringify(next));
-      } else {
-        localStorage.removeItem(storageKey);
-      }
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {
       // The in-memory draft remains usable if storage is unavailable.
     }
   }
 
-  function setField(index: number, field: keyof SetFields, value: string) {
-    updateDraft({ ...draft, sets: draft.sets.map((row, i) => i === index ? { ...row, [field]: value } : row) });
+  function resetDraft(last?: Session) {
+    setDraft(newDraft(draft.unit, last));
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // The browser may block local storage.
+    }
+  }
+
+  function setField(slot: number, field: keyof SetFields, value: string) {
+    updateDraft({ ...draft, sets: draft.sets.map((row) => row.slot === slot ? { ...row, [field]: value } : row) });
+  }
+
+  function addSet(slot: number) {
+    updateDraft({ ...draft, sets: [...draft.sets, blankSet(slot)].sort((a, b) => compareSetSlots(a.slot, b.slot)) });
   }
 
   function copyLast() {
@@ -133,12 +193,9 @@ export function TrainingLog({
     updateDraft({
       ...draft,
       unit: latest.entry.unit,
-      sets: draft.sets.map((row, slot) => {
-        const previous = latest.entry.sets.find((set) => set.slot === slot);
-        return previous ? {
-          weight: String(previous.weight / 100), reps: String(previous.reps), rest: previous.restSeconds?.toString() ?? "",
-        } : row;
-      }),
+      sets: latest.entry.sets.map(({ slot, weight, reps, restSeconds }) => ({
+        slot, weight: String(weight / 100), reps: String(reps), rest: restSeconds?.toString() ?? "",
+      })).sort((a, b) => compareSetSlots(a.slot, b.slot)),
     });
   }
 
@@ -147,10 +204,11 @@ export function TrainingLog({
     if (busy) return;
     setError("");
     const sets: LiftSet[] = [];
-    for (const [slot, { weight, reps, rest }] of draft.sets.entries()) {
-      if (!weight && !reps && !rest) continue;
-      if (!weight || !reps) {
-        setError(`Enter both weight and reps for ${SET_NAMES[slot].toLowerCase()}.`);
+    for (const row of draft.sets) {
+      if (!hasValues(row)) continue;
+      const { slot, weight, reps, rest } = row;
+      if (!isComplete(row)) {
+        setError(`Enter a valid weight and rep count for ${setName(slot).toLowerCase()}.`);
         return;
       }
       sets.push({ slot, weight: Math.round(Number(weight) * 100), reps: Number(reps), restSeconds: rest ? Number(rest) : undefined });
@@ -159,15 +217,18 @@ export function TrainingLog({
       setError("Enter the weight and reps for at least one set. Use 0 for bodyweight.");
       return;
     }
-    setBusy(true);
+    const now = Date.now();
+    const durationSeconds = workoutSeconds(draft.startedAt ?? now, now);
+    sets.sort((a, b) => a.slot - b.slot);
+    setSavingSeconds(durationSeconds);
     try {
-      await log({ id: draft.id, exerciseId: exercise.id, unit: draft.unit, sets, notes: draft.notes.trim() });
-      updateDraft(newDraft(draft.unit));
+      const saved = await log({ id: draft.id, exerciseId: exercise.id, unit: draft.unit, sets, notes: draft.notes.trim(), durationSeconds });
+      resetDraft(saved);
       onSaved();
     } catch (error) {
       setError(errorMessage(error));
     } finally {
-      setBusy(false);
+      setSavingSeconds(undefined);
     }
   }
 
@@ -210,14 +271,17 @@ export function TrainingLog({
               <th scope="col">Weight <span>({draft.unit})</span></th>
               <th scope="col">Reps</th>
               <th scope="col">Rest <span>(s)</span></th>
+              <th scope="col" aria-label="Remove set" />
             </tr></thead>
             <tbody>
-              {SET_NAMES.map((name, slot) => {
+              {draft.sets.map((row) => {
+                const { slot } = row;
+                const name = setName(slot);
+                const mark = setMark(slot);
                 const previous = latest?.entry.sets.find((set) => set.slot === slot);
-                const row = draft.sets[slot];
                 return (
-                  <tr key={name}>
-                    <th scope="row"><span className={`set-mark mark-${SET_MARKS[slot]}`}>{SET_MARKS[slot]}</span><span className="set-name">{name}</span></th>
+                  <tr key={slot}>
+                    <th scope="row"><span className={`set-mark mark-${mark}`} aria-hidden="true">{mark}</span><span className="set-name">{name}</span></th>
                     <td className="previous-set">{previous && latest ? <>
                       <span>{setText(previous, latest.entry.unit)}</span>
                       {previous.restSeconds !== undefined && <small>{previous.restSeconds}s rest</small>}
@@ -228,22 +292,40 @@ export function TrainingLog({
                       placeholder="—" value={row.reps} disabled={busy} onChange={(event) => setField(slot, "reps", event.target.value)} /></td>
                     <td><input type="number" inputMode="numeric" min={0} max={3600} step={1} aria-label={`${name} rest in seconds`}
                       placeholder="—" value={row.rest} disabled={busy} onChange={(event) => setField(slot, "rest", event.target.value)} /></td>
+                    <td className="remove-set-cell">
+                      <button className="icon-button remove-set" type="button" disabled={busy} aria-label={`Remove ${name} set`}
+                        onClick={() => updateDraft({ ...draft, sets: draft.sets.filter((set) => set.slot !== slot) })}>
+                        <X size={14} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
+              {draft.sets.length === 0 && <tr><td className="no-sets" colSpan={6}>Add a set to start this entry.</td></tr>}
             </tbody>
           </table>
         </div>
+        <div className="set-actions" aria-label="Add sets">
+          <button className="button secondary" type="button" disabled={busy || nextWorkingSlot === undefined}
+            onClick={() => { if (nextWorkingSlot !== undefined) addSet(nextWorkingSlot); }}>
+            <Plus size={15} /> Add set
+          </button>
+          {!slots.has(WARM_UP_SLOT) && <button className="button secondary" type="button" disabled={busy}
+            onClick={() => addSet(WARM_UP_SLOT)}>Add warm-up</button>}
+          {!slots.has(BURNOUT_SLOT) && <button className="button secondary" type="button" disabled={busy}
+            onClick={() => addSet(BURNOUT_SLOT)}>Add burnout</button>}
+        </div>
+        <WorkoutDuration startedAt={draft.startedAt} savingSeconds={savingSeconds} />
         <label className="note-field"><span><ClipboardList size={15} /> Session notes <small>Optional</small></span>
           <textarea placeholder="How did the sets feel?" rows={2} maxLength={500} value={draft.notes} disabled={busy}
             onChange={(event) => updateDraft({ ...draft, notes: event.target.value })} />
         </label>
         {error && <p role="alert" className="inline-error logger-error">{error}</p>}
         <div className="logger-footer">
-          <span className="set-count"><span className={complete ? "live-dot" : "muted-dot"} /> {complete} / 5 sets entered</span>
+          <span className="set-count"><span className={complete ? "live-dot" : "muted-dot"} /> {complete} / {draft.sets.length} sets entered</span>
           <div className="logger-actions">
-            {(hasSets || draft.notes) && <button className="text-button clear-draft" type="button" disabled={busy} onClick={() => {
-              updateDraft(newDraft(draft.unit));
+            {hasDraft && <button className="text-button clear-draft" type="button" disabled={busy} onClick={() => {
+              resetDraft(latest);
               setError("");
             }}>Clear draft</button>}
             <button className="button primary" type="submit" disabled={busy}>

@@ -8,7 +8,11 @@ import Time "mo:core/Time";
 import Training "../lib/Training";
 import Types "../types";
 
-mixin(accounts : Map.Map<Principal, Types.Account>, totals : { var sessions : Nat }) {
+mixin(
+  accounts : Map.Map<Principal, Types.Account>,
+  totals : { var sessions : Nat },
+  durations : Map.Map<Principal, Types.Durations>,
+) {
   func accountForEdit(caller : Principal) : Types.Result<Types.Account> {
     switch (accounts.get(caller)) {
       case (?account) #ok(account);
@@ -23,7 +27,7 @@ mixin(accounts : Map.Map<Principal, Types.Account>, totals : { var sessions : Na
     if (caller.isAnonymous()) { return #err(#unauthorized) };
     #ok(switch (accounts.get(caller)) {
       case null { { categories = []; exercises = []; sessionCount = 0 } };
-      case (?account) Training.workspace(account);
+      case (?account) Training.workspace(account, durations.get(caller));
     })
   };
 
@@ -91,8 +95,10 @@ mixin(accounts : Map.Map<Principal, Types.Account>, totals : { var sessions : Na
     #ok(exercise)
   };
 
-  public shared ({ caller }) func logSession(entry : Types.Entry) : async Types.Result<Types.Session> {
+  public shared ({ caller }) func logSession(input : Types.SessionInput) : async Types.Result<Types.Session> {
     if (caller.isAnonymous()) { return #err(#unauthorized) };
+    let { id; exerciseId; unit; sets; notes; durationSeconds } = input;
+    let entry : Types.Entry = { id; exerciseId; unit; sets; notes };
     if (not Training.validId(entry.id) or not Training.validId(entry.exerciseId) or not Training.validateSets(entry.sets)) {
       return #err(#invalidInput("Enter at least one valid set."));
     };
@@ -102,18 +108,21 @@ mixin(accounts : Map.Map<Principal, Types.Account>, totals : { var sessions : Na
     switch (account.byId.get(entry.id)) {
       case (?previous) {
         if (to_candid(previous.entry) != to_candid(entry)) { return #err(#conflict) };
-        return #ok(previous);
+        return #ok(Training.sessionView(previous, durations.get(caller)));
       };
       case null {};
     };
     if (account.sessions.size() >= 10_000 or totals.sessions >= 250_000) {
       return #err(#limitReached("Session capacity reached."));
     };
-    let session : Types.Session = { entry; loggedAt = Time.now() };
+    if ((durationSeconds ?? (30 : Nat32)) < 30) {
+      return #err(#invalidInput("Workout duration must be at least 30 seconds."));
+    };
+    let session : Types.StoredSession = { entry; loggedAt = Time.now() };
     let exerciseSessions = switch (account.byExercise.get(entry.exerciseId)) {
       case (?sessions) sessions;
       case null {
-        let sessions = List.empty<Types.Session>();
+        let sessions = List.empty<Types.StoredSession>();
         account.byExercise.add(entry.exerciseId, sessions);
         sessions
       };
@@ -121,20 +130,35 @@ mixin(accounts : Map.Map<Principal, Types.Account>, totals : { var sessions : Na
     exerciseSessions.add(session);
     account.sessions.add(session);
     account.byId.add(entry.id, session);
+    switch (durationSeconds) {
+      case null {};
+      case (?seconds) {
+        let entries = switch (durations.get(caller)) {
+          case (?existing) existing;
+          case null {
+            let fresh = Map.empty<Text, Nat32>();
+            durations.add(caller, fresh);
+            fresh
+          };
+        };
+        entries.add(entry.id, seconds);
+      };
+    };
     totals.sessions += 1;
-    #ok(session)
+    #ok({ session with durationSeconds })
   };
 
   public shared query ({ caller }) func getHistory(exerciseId : ?Text, before : ?Nat) : async Types.Result<Types.HistoryPage> {
     if (caller.isAnonymous()) { return #err(#unauthorized) };
     let empty : Types.HistoryPage = { sessions = []; before = null };
     let ?account = accounts.get(caller) else { return #ok(empty) };
+    let workoutDurations = durations.get(caller);
     switch (exerciseId) {
-      case null #ok(Training.history(account.sessions, before));
+      case null #ok(Training.history(account.sessions, before, workoutDurations));
       case (?id) {
         if (not Training.validId(id) or not account.exercises.containsKey(id)) { return #err(#notFound) };
         let ?sessions = account.byExercise.get(id) else { return #ok(empty) };
-        #ok(Training.history(sessions, before))
+        #ok(Training.history(sessions, before, workoutDurations))
       };
     }
   };

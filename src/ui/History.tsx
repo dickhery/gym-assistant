@@ -1,22 +1,35 @@
-import { CalendarDays, ChevronDown, Dumbbell, History as HistoryIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, Dumbbell, History as HistoryIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ExerciseSummary, Session } from "../bindings/backend";
 import { errorMessage, type TrainingStore } from "../store";
-import { sessionDate, SET_NAMES, setText } from "./format";
+import { compareSetSlots, dateOf, formatDuration, setName, setText } from "./format";
+
+const dayFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: "long", month: "long", day: "numeric", year: "numeric",
+});
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
 
 function HistoryEntry({ session, name }: { session: Session; name: string }) {
   const { entry } = session;
   const heaviest = entry.sets.reduce((top, set) => set.weight > top.weight ? set : top);
+  const sets = [...entry.sets].sort((a, b) => compareSetSlots(a.slot, b.slot));
+  const date = dateOf(session);
   return <details className="history-entry">
     <summary>
       <span className="movement-icon"><Dumbbell size={17} /></span>
-      <span className="history-title"><strong>{name}</strong><small><CalendarDays size={13} /> {sessionDate(session)}</small></span>
+      <span className="history-title">
+        <strong>{name}</strong>
+        <small><time dateTime={date.toISOString()}>{timeFormat.format(date)}</time> · {sets.length} {sets.length === 1 ? "set" : "sets"}</small>
+      </span>
       <span className="history-top"><strong>{setText(heaviest, entry.unit)}</strong><small>Heaviest set</small></span>
+      {session.durationSeconds !== undefined && <span className="history-duration">
+        <Clock3 size={14} aria-hidden="true" /> {formatDuration(session.durationSeconds)}
+      </span>}
       <ChevronDown className="history-chevron" size={17} />
     </summary>
     <div className="history-details">
-      <ul>{entry.sets.map((set) => <li key={set.slot}>
-        <span>{SET_NAMES[set.slot]}</span><strong>{setText(set, entry.unit)}</strong>
+      <ul>{sets.map((set) => <li key={set.slot}>
+        <span>{setName(set.slot)}</span><strong>{setText(set, entry.unit)}</strong>
         {set.restSeconds !== undefined && <small>{set.restSeconds}s rest</small>}
       </li>)}</ul>
       {entry.notes && <p className="history-notes">{entry.notes}</p>}
@@ -38,6 +51,13 @@ export function History({
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const names = new Map(exercises.map(({ exercise }) => [exercise.id, exercise.name]));
+  const days = new Map<string, Session[]>();
+  for (const session of sessions) {
+    const day = dayFormat.format(dateOf(session));
+    const entries = days.get(day);
+    if (entries) entries.push(session);
+    else days.set(day, [session]);
+  }
 
   useEffect(() => {
     let active = true;
@@ -74,7 +94,7 @@ export function History({
   return <section className="panel history-panel" aria-labelledby="history-title">
     <header className="history-header">
       <div><div className="section-kicker">YOUR PROGRESS</div><h1 id="history-title">Session history</h1>
-        <p>Review your previous sets, weights, rest and notes.</p></div>
+        <p>Review the exercises, sets, and workout times you logged each day.</p></div>
       <label className="history-filter">Exercise
         <select aria-label="Filter history by exercise" value={exerciseId} disabled={loading}
           onChange={(event) => setExerciseId(event.target.value)}>
@@ -83,8 +103,15 @@ export function History({
         </select>
       </label>
     </header>
-    {sessions.map((session) => <HistoryEntry key={session.entry.id} session={session}
-      name={names.get(session.entry.exerciseId) ?? "Exercise"} />)}
+    {[...days].map(([day, entries]) => <section className="history-day" aria-label={day} key={day}>
+      <header className="history-day-heading">
+        <CalendarDays size={16} aria-hidden="true" />
+        <h2>{day}</h2>
+        <span>{entries.length} {entries.length === 1 ? "entry" : "entries"}</span>
+      </header>
+      {entries.map((session) => <HistoryEntry key={session.entry.id} session={session}
+        name={names.get(session.entry.exerciseId) ?? "Exercise"} />)}
+    </section>)}
     {error && <div className="history-feedback" role="alert"><p>{error}</p>
       <button className="button secondary" onClick={() => before === null ? setRetry(retry + 1) : void loadMore()}>Try again</button></div>}
     {!error && loading && <p className="history-feedback" role="status">Loading sessions…</p>}
