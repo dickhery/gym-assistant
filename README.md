@@ -23,11 +23,9 @@ Run `npm run build` to generate Candid bindings, type-check TypeScript, and buil
 
 ## Deploy to mainnet
 
-The frontend is hosted at the first URL below once the assets have been uploaded.
-
 | Canister | ID |
 | --- | --- |
-| [Frontend](https://qrnfr-liaaa-aaaah-arh3a-cai.icp.net) | `qrnfr-liaaa-aaaah-arh3a-cai` |
+| [Frontend](https://qd2eh-gaaaa-aaaac-bgixa-cai.icp.net) | `qd2eh-gaaaa-aaaac-bgixa-cai` |
 | Backend | `pnbfc-giaaa-aaaac-qhogq-cai` |
 
 Use a backend controller for the backend deployment and a frontend controller or an identity with the frontend asset canister's `Commit` permission for the asset sync.
@@ -35,7 +33,7 @@ Use a backend controller for the backend deployment and a frontend controller or
 ```sh
 npm ci
 npm exec -- icp canister link backend pnbfc-giaaa-aaaac-qhogq-cai -e ic
-npm exec -- icp canister link frontend qrnfr-liaaa-aaaah-arh3a-cai -e ic
+npm exec -- icp canister link frontend qd2eh-gaaaa-aaaac-bgixa-cai -e ic --force
 npm exec -- icp deploy backend -e ic --no-create
 npm run build
 npm exec -- icp sync frontend -e ic
