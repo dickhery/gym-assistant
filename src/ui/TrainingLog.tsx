@@ -6,6 +6,19 @@ import { categoryColor, sessionDate, SET_MARKS, SET_NAMES, setText } from "./for
 
 type SetFields = { weight: string; reps: string; rest: string };
 type Draft = { id: string; unit: Unit; sets: SetFields[]; notes: string };
+const draftPrefix = (principal: string) => `gym-assistant:draft:${principal}:`;
+
+export function clearAccountDrafts(principal: string) {
+  const prefix = draftPrefix(principal);
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(prefix)) localStorage.removeItem(key);
+    }
+  } catch {
+    // The browser may block local storage.
+  }
+}
 
 function newDraft(unit: Unit): Draft {
   return {
@@ -14,19 +27,17 @@ function newDraft(unit: Unit): Draft {
   };
 }
 
-function readDraft(key: string | null, unit: Unit): Draft {
-  if (key) {
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? "null") as Draft | null;
-      if (saved && typeof saved.id === "string" && typeof saved.notes === "string"
-        && (saved.unit === Unit.lb || saved.unit === Unit.kg) && Array.isArray(saved.sets)
-        && saved.sets.length === SET_NAMES.length && saved.sets.every((row) =>
-          row && typeof row.weight === "string" && typeof row.reps === "string" && typeof row.rest === "string")) {
-        return saved;
-      }
-    } catch {
-      // Storage may be disabled or contain an obsolete draft.
+function readDraft(key: string, unit: Unit): Draft {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) ?? "null") as Draft | null;
+    if (saved && typeof saved.id === "string" && typeof saved.notes === "string"
+      && (saved.unit === Unit.lb || saved.unit === Unit.kg) && Array.isArray(saved.sets)
+      && saved.sets.length === SET_NAMES.length && saved.sets.every((row) =>
+        row && typeof row.weight === "string" && typeof row.reps === "string" && typeof row.rest === "string")) {
+      return saved;
     }
+  } catch {
+    // Storage may be disabled or contain an obsolete draft.
   }
   return newDraft(unit);
 }
@@ -86,13 +97,13 @@ export function TrainingLog({
 }: {
   summary: ExerciseSummary;
   categories: Category[];
-  principal: string | null;
+  principal: string;
   edit: () => void;
   log: (entry: Entry) => Promise<Session>;
   onSaved: () => void;
 }) {
   const { exercise, latest } = summary;
-  const storageKey = principal ? `gym-assistant:draft:${principal}:${exercise.id}` : null;
+  const storageKey = draftPrefix(principal) + exercise.id;
   const [draft, setDraft] = useState(() => readDraft(storageKey, latest?.entry.unit ?? Unit.lb));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -102,16 +113,14 @@ export function TrainingLog({
 
   function updateDraft(next: Draft) {
     setDraft(next);
-    if (storageKey) {
-      try {
-        if (next.notes || next.sets.some((row) => row.weight || row.reps || row.rest)) {
-          localStorage.setItem(storageKey, JSON.stringify(next));
-        } else {
-          localStorage.removeItem(storageKey);
-        }
-      } catch {
-        // The in-memory draft remains usable if storage is unavailable.
+    try {
+      if (next.notes || next.sets.some((row) => row.weight || row.reps || row.rest)) {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } else {
+        localStorage.removeItem(storageKey);
       }
+    } catch {
+      // The in-memory draft remains usable if storage is unavailable.
     }
   }
 

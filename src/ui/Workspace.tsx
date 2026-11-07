@@ -1,5 +1,5 @@
 import {
-  ArrowRight, CalendarDays, ChevronRight, CircleHelp, Dumbbell, Folder, History as HistoryIcon,
+  CalendarDays, ChevronRight, Dumbbell, Folder, History as HistoryIcon,
   LayoutGrid, LogOut, Menu, Pencil, Plus, Search, ShieldCheck, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,13 +15,12 @@ type View = "log" | "history";
 const sortByName = <T extends { name: string }>(first: T, second: T) => first.name.localeCompare(second.name);
 
 export function Workspace({
-  store, principal, authBusy, authError, toggleAuth,
+  store, principal, authError, onSignOut,
 }: {
   store: TrainingStore;
-  principal: string | null;
-  authBusy: boolean;
+  principal: string;
   authError: string;
-  toggleAuth: () => Promise<void>;
+  onSignOut: () => Promise<void>;
 }) {
   const [data, setData] = useState<WorkspaceData>();
   const [loadError, setLoadError] = useState("");
@@ -43,12 +42,12 @@ export function Workspace({
       if (!active) return;
       workspace.exercises.forEach(({ latest }) => { if (latest) knownSessions.add(latest.entry.id); });
       setData(workspace);
-      setExerciseId(principal ? workspace.exercises[0]?.exercise.id ?? "" : "demo-bench");
+      setExerciseId(workspace.exercises[0]?.exercise.id ?? "");
     }).catch((error) => {
       if (active) setLoadError(errorMessage(error));
     });
     return () => { active = false; };
-  }, [store, principal, retry, knownSessions]);
+  }, [store, retry, knownSessions]);
 
   useEffect(() => {
     if (!notice) return;
@@ -190,11 +189,10 @@ export function Workspace({
         </div>
         <div className="sidebar-footer">
           <div className="account-card">
-            <span className="account-icon">{principal ? <ShieldCheck size={17} /> : <CircleHelp size={17} />}</span>
-            <span><strong>{principal ? "Signed in" : "Demo workspace"}</strong>
-              <small>{principal ? "Internet Identity" : "Sample data · temporary"}</small></span>
+            <span className="account-icon"><ShieldCheck size={17} /></span>
+            <span><strong>Signed in</strong><small>Internet Identity</small></span>
           </div>
-          {principal && <button className="nav-item sign-out" disabled={authBusy} onClick={() => void toggleAuth()}><LogOut size={16} /> <span>Sign out</span></button>}
+          <button className="nav-item sign-out" onClick={() => void onSignOut()}><LogOut size={16} /> <span>Sign out</span></button>
         </div>
       </aside>
       <main className="main-area">
@@ -204,14 +202,7 @@ export function Workspace({
               aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
             <span>Workspace</span><ChevronRight size={14} /><strong>{view === "log" ? "Training log" : "Session history"}</strong>
           </div>
-          {principal ? <span className="account-status"><span className="live-dot" /> <span>Internet Identity</span></span> :
-            <div className="sign-in-group">
-              <span className="demo-indicator">Demo</span>
-              <button className="button sign-in" onClick={() => void toggleAuth()} disabled={authBusy}
-                aria-label="Sign in with Internet Identity" title="Sign in with Internet Identity">
-                <ShieldCheck size={16} /> {authBusy ? "Signing in…" : "Sign in"} <ArrowRight size={15} />
-              </button>
-            </div>}
+          <span className="account-status"><span className="live-dot" /> <span>Internet Identity</span></span>
         </header>
         <div className="main-content">
           {authError && <p className="inline-error top-error" role="alert">{authError}</p>}
@@ -252,7 +243,7 @@ export function Workspace({
               </section>
               {selected ? <TrainingLog key={selected.exercise.id} summary={selected} categories={categories} principal={principal}
                 edit={() => setEditor({ kind: "exercise", exercise: selected.exercise, newId: selected.exercise.id })}
-                log={log} onSaved={() => setNotice(principal ? "Session saved." : "Demo session saved for this visit.")} />
+                log={log} onSaved={() => setNotice("Session saved.")} />
                 : <EmptyLogger add={newExercise} hasExercises={exercises.length > 0} />}
             </div>
           </>}

@@ -78,8 +78,6 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .breadcrumb { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .breadcrumb strong { color: var(--ink); font-weight: 690; }
 .account-status { display: inline-flex; align-items: center; gap: 8px; color: #4b5b33; font-size: 12px; font-weight: 650; white-space: nowrap; }
-.sign-in-group { display: flex; align-items: center; gap: 9px; }
-.demo-indicator { display: none; background: #eef1e6; color: #58624d; padding: 3px 6px; border-radius: 5px; font-size: 10px; font-weight: 750; }
 .main-content { max-width: 1480px; margin: auto; padding: 25px clamp(22px, 3vw, 48px) 15px; }
 .hero { position: relative; isolation: isolate; overflow: hidden; min-height: 153px; display: flex; align-items: center; padding: 24px 29px; background: #262d1d; color: #fff; border-radius: 15px; }
 .hero-copy { position: relative; z-index: 1; }
@@ -206,11 +204,14 @@ button.timer-button { width: 25px; height: 25px; background: #eff2e7; color: #47
 .page-footer { display: flex; justify-content: space-between; gap: 10px; color: #646a5a; margin-top: 17px; font-size: 10px; }
 .page-footer span:first-child { font-weight: 760; letter-spacing: 1.1px; }
 
-.empty-logger, .load-state { min-height: 295px; padding: 30px 18px; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; }
+.empty-logger, .load-state, .sign-in-panel { min-height: 295px; padding: 30px 18px; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; }
 .load-state { margin-top: 16px; min-height: 150px; }
+.sign-in-page { max-width: 880px; padding-top: clamp(22px, 6vh, 64px); }
+.sign-in-panel { margin-top: 16px; min-height: 244px; }
+.sign-in-panel .button { margin-top: 5px; }
 .empty-icon, .modal-icon { width: 48px; height: 48px; border-radius: 12px; background: #edf3df; color: #506435; }
-.empty-logger h2, .history-empty h2 { font-size: 22px; letter-spacing: -.05em; }
-.empty-logger p, .load-state p { max-width: 300px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.empty-logger h2, .history-empty h2, .sign-in-panel h2 { font-size: 22px; letter-spacing: -.05em; }
+.empty-logger p, .load-state p, .sign-in-panel > p:not(.inline-error) { max-width: 300px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .history-panel { padding: 20px; }
 .history-header { display: flex; justify-content: space-between; align-items: end; gap: 15px; margin: 0 0 20px; }
 .history-header h1 { margin-top: 5px; font-size: clamp(30px, 4vw, 44px); line-height: 1.03; letter-spacing: -.065em; }
@@ -275,7 +276,6 @@ button.timer-button { width: 25px; height: 25px; background: #eff2e7; color: #47
   button.menu-toggle { display: grid !important; margin-left: -6px; }
   .menu-scrim { display: block !important; position: fixed; inset: 0; border: 0; z-index: 4; background: #20251b76; }
   .main-area { margin-left: 0; }
-  .demo-indicator { display: inline-block; }
 }
 @media (max-width: 630px) {
   .topbar { padding-inline: 13px; height: 56px; }
