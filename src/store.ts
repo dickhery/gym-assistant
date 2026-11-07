@@ -9,7 +9,14 @@ const canisterEnv = safeGetCanisterEnv();
 const backendId = import.meta.env.VITE_BACKEND_ID || canisterEnv?.["PUBLIC_CANISTER_ID:backend"]
   || "pnbfc-giaaa-aaaac-qhogq-cai";
 const localIdentityUrl = import.meta.env.VITE_LOCAL_II_URL;
-const agentOptions = { rootKey: canisterEnv?.IC_ROOT_KEY };
+const { hostname, origin } = window.location;
+const isLocalGateway = canisterEnv?.IC_ROOT_KEY
+  && (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1");
+const agentOptions = {
+  rootKey: canisterEnv?.IC_ROOT_KEY,
+  // The local gateway serves /api on the frontend origin, which keeps calls inside its CSP.
+  host: isLocalGateway ? origin : undefined,
+};
 
 export const auth = new AuthClient(localIdentityUrl ? {
   agentOptions,

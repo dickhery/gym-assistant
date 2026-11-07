@@ -17,7 +17,7 @@ npm exec -- icp network start -d
 VITE_LOCAL_II_URL=http://id.ai.localhost:8000/authorize npm exec -- icp deploy
 ```
 
-Open the frontend URL printed by the CLI. A fresh local network uses a local Internet Identity instance. For UI-only work, run `npm run bindings` and `npm run dev`, then use the demo workspace.
+Open the frontend URL printed by the CLI. If the local Internet Identity instance asks for a seed index, pick a test number and reuse it to sign in to the same local account. For UI-only work, run `npm run bindings` and `npm run dev`, then use the demo workspace.
 
 Run `npm run build` to generate Candid bindings, type-check TypeScript, and build the frontend. Run `npm exec -- mops check` to check the Motoko backend. After changing the backend interface, regenerate its Candid with `npm exec -- mops generate candid`.
 
