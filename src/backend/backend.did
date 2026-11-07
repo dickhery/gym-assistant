@@ -1,0 +1,99 @@
+type Workspace =
+ record {
+   categories: vec Category;
+   exercises: vec ExerciseSummary;
+   sessionCount: nat;
+ };
+type Unit =
+ variant {
+   kg;
+   lb;
+ };
+type Session =
+ record {
+   entry: Entry;
+   loggedAt: int;
+ };
+type Result_5 =
+ variant {
+   err: Error;
+   ok: HistoryPage;
+ };
+type Result_4 =
+ variant {
+   err: Error;
+   ok: Workspace;
+ };
+type Result_3 =
+ variant {
+   err: Error;
+   ok: Session;
+ };
+type Result_2 =
+ variant {
+   err: Error;
+   ok;
+ };
+type Result_1 =
+ variant {
+   err: Error;
+   ok: Category;
+ };
+type Result =
+ variant {
+   err: Error;
+   ok: Exercise;
+ };
+type LiftSet =
+ record {
+   reps: nat16;
+   restSeconds: opt nat16;
+   slot: nat8;
+   weight: nat32;
+ };
+type HistoryPage =
+ record {
+   before: opt nat;
+   sessions: vec Session;
+ };
+type ExerciseSummary =
+ record {
+   exercise: Exercise;
+   latest: opt Session;
+   sessionCount: nat;
+ };
+type Exercise =
+ record {
+   categoryIds: vec text;
+   id: text;
+   name: text;
+ };
+type Error =
+ variant {
+   conflict;
+   invalidInput: text;
+   limitReached: text;
+   notFound;
+   unauthorized;
+ };
+type Entry =
+ record {
+   exerciseId: text;
+   id: text;
+   notes: text;
+   sets: vec LiftSet;
+   unit: Unit;
+ };
+type Category =
+ record {
+   id: text;
+   name: text;
+ };
+service : {
+  getHistory: (exerciseId: opt text, before: opt nat) -> (Result_5) query;
+  getWorkspace: () -> (Result_4) query;
+  logSession: (entry: Entry) -> (Result_3);
+  removeCategory: (id: text) -> (Result_2);
+  saveCategory: (category: Category) -> (Result_1);
+  saveExercise: (exercise: Exercise) -> (Result);
+}

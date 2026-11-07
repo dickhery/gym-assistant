@@ -1,0 +1,17 @@
+[
+  {
+    "match": "**/*",
+    "security_policy": "standard",
+    "allow_raw_access": false,
+    "headers": {
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://icp-api.io https://id.ai; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      "Referrer-Policy": "strict-origin-when-cross-origin"
+    }
+  },
+  { "match": "assets/**/*", "cache": { "max_age": 31536000 } },
+  {
+    "match": ".well-known/ii-app-metadata",
+    "ignore": false,
+    "headers": { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" }
+  }
+]

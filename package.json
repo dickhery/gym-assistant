@@ -1,0 +1,32 @@
+{
+  "name": "gym-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "bindings": "icp-bindgen --did-file src/backend/backend.did --out-dir src/bindings --force",
+    "check": "npm run bindings && tsc --noEmit",
+    "build": "npm run check && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@icp-sdk/auth": "^11.1.0",
+    "@icp-sdk/core": "^6.1.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@icp-sdk/bindgen": "^0.4.1",
+    "@icp-sdk/icp-cli": "1.8.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "ic-mops": "3.5.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  }
+}
